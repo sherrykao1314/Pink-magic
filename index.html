@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pink Magic 空專抽獎系統</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        :root {
+            --pink-color: #ff85a2;
+            --grey-color: #8e8e8e;
+            --bg-color: #fff5f7;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            color: #333;
+        }
+
+        h1 {
+            color: var(--pink-color);
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .container {
+            display: flex;
+            gap: 20px;
+            width: 100%;
+            max-width: 900px;
+            flex-wrap: wrap;
+        }
+
+        .card {
+            flex: 1;
+            min-width: 300px;
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+            border-top: 5px solid;
+        }
+
+        .pink-card { border-color: var(--pink-color); }
+        .grey-card { border-color: var(--grey-color); }
+
+        h2 { margin-top: 0; }
+        .pink-title { color: var(--pink-color); }
+        .grey-title { color: var(--grey-color); }
+
+        textarea {
+            width: 100%;
+            height: 150px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            resize: none;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+
+        .btn-container {
+            margin: 40px 0;
+            text-align: center;
+        }
+
+        button {
+            padding: 15px 50px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: white;
+            background: linear-gradient(45deg, var(--pink-color), var(--grey-color));
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        /* 彈窗效果 */
+        #overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            color: white;
+        }
+
+        .winner-box {
+            text-align: center;
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popIn {
+            from { transform: scale(0); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .winner-name {
+            font-size: 3rem;
+            font-weight: bold;
+            margin: 10px 0;
+            display: block;
+        }
+
+        .winner-pink { color: var(--pink-color); }
+        .winner-grey { color: var(--grey-color); }
+
+        .close-btn {
+            margin-top: 30px;
+            background: white;
+            color: #333;
+            padding: 10px 30px;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>✨ Pink Magic 空專隨機抽獎 ✨</h1>
+
+    <div class="container">
+        <div class="card grey-card">
+            <h2 class="grey-title">🔘 灰版 (Grey Ver.)</h2>
+            <p>請輸入抽獎號碼（每行一個）：</p>
+            <textarea id="greyInput" placeholder="例如：&#10;小明&#10;001&#10;抽獎狂人..."></textarea>
+            <p>已記錄人數：<span id="greyCount">0</span></p>
+        </div>
+
+        <div class="card pink-card">
+            <h2 class="pink-title">🌸 粉版 (Pink Ver.)</h2>
+            <p>請輸入抽獎號碼（每行一個）：</p>
+            <textarea id="pinkInput" placeholder="例如：&#10;小美&#10;002&#10;想中獎的人..."></textarea>
+            <p>已記錄人數：<span id="pinkCount">0</span></p>
+        </div>
+    </div>
+
+    <div class="btn-container">
+        <button onclick="drawWinners()">✨ 開始抽獎 (Draw Now) ✨</button>
+    </div>
+
+    <div id="overlay">
+        <div class="winner-box" id="rolling">
+            <h2>正在魔法施法中...</h2>
+        </div>
+        <div class="winner-box" id="result" style="display:none;">
+            <h2 style="font-size: 1.5rem;">🎉 恭喜得獎者 🎉</h2>
+            <div>
+                <span class="grey-title">灰版得獎者：</span>
+                <span id="winnerGrey" class="winner-name winner-grey"></span>
+            </div>
+            <div style="margin-top: 20px;">
+                <span class="pink-title">粉版得獎者：</span>
+                <span id="winnerPink" class="winner-name winner-pink"></span>
+            </div>
+            <div class="close-btn" onclick="closeOverlay()">關閉視窗</div>
+        </div>
+    </div>
+
+    <script>
+        // 即時計算人數
+        document.getElementById('greyInput').addEventListener('input', function() {
+            const lines = this.value.split('\n').filter(line => line.trim() !== '');
+            document.getElementById('greyCount').innerText = lines.length;
+        });
+
+        document.getElementById('pinkInput').addEventListener('input', function() {
+            const lines = this.value.split('\n').filter(line => line.trim() !== '');
+            document.getElementById('pinkCount').innerText = lines.length;
+        });
+
+        function drawWinners() {
+            const greyList = document.getElementById('greyInput').value.split('\n').filter(line => line.trim() !== '');
+            const pinkList = document.getElementById('pinkInput').value.split('\n').filter(line => line.trim() !== '');
+
+            if (greyList.length === 0 || pinkList.length === 0) {
+                alert("請確保兩個版本都有輸入抽獎名單喔！");
+                return;
+            }
+
+            // 顯示遮罩與過場動畫
+            const overlay = document.getElementById('overlay');
+            const rolling = document.getElementById('rolling');
+            const result = document.getElementById('result');
+            overlay.style.display = 'flex';
+            rolling.style.display = 'block';
+            result.style.display = 'none';
+
+            // 模擬捲動特效
+            setTimeout(() => {
+                const winnerGrey = greyList[Math.floor(Math.random() * greyList.length)];
+                const winnerPink = pinkList[Math.floor(Math.random() * pinkList.length)];
+
+                document.getElementById('winnerGrey').innerText = winnerGrey;
+                document.getElementById('winnerPink').innerText = winnerPink;
+
+                rolling.style.display = 'none';
+                result.style.display = 'block';
+
+                // 絢麗噴花特效
+                launchConfetti();
+            }, 1500);
+        }
+
+        function launchConfetti() {
+            var duration = 3 * 1000;
+            var end = Date.now() + duration;
+
+            (function frame() {
+                // 從左邊噴粉色
+                confetti({
+                    particleCount: 3,
+                    angle: 60,
+                    spread: 55,
+                    origin: { x: 0 },
+                    colors: ['#ff85a2', '#ffb3c1']
+                });
+                // 從右邊噴灰色
+                confetti({
+                    particleCount: 3,
+                    angle: 120,
+                    spread: 55,
+                    origin: { x: 1 },
+                    colors: ['#8e8e8e', '#d3d3d3']
+                });
+
+                if (Date.now() < end) {
+                    requestAnimationFrame(frame);
+                }
+            }());
+        }
+
+        function closeOverlay() {
+            document.getElementById('overlay').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
