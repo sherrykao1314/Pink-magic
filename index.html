@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pink Magic 空專抽獎</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        :root {
+            --pink-color: #ff85a2;
+            --grey-color: #8e8e8e;
+            --bg-color: #fff5f7;
+        }
+
+        body {
+            font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+            background-color: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 30px 10px;
+            color: #333;
+            margin: 0;
+        }
+
+        /* 優化後的標題樣式 */
+        h1 {
+            color: var(--pink-color);
+            font-size: 2rem;
+            margin-bottom: 40px;
+            text-align: center;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-weight: 800;
+            /* 防止標題換行的技巧 */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .container {
+            display: flex;
+            gap: 20px;
+            width: 100%;
+            max-width: 800px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .card {
+            flex: 1;
+            min-width: 300px;
+            background: white;
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.05);
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .pink-card { border-color: var(--pink-color); }
+        .grey-card { border-color: var(--grey-color); }
+
+        h2 { margin-top: 0; font-size: 1.2rem; }
+        .pink-title { color: var(--pink-color); }
+        .grey-title { color: var(--grey-color); }
+
+        textarea {
+            width: 100%;
+            height: 180px;
+            padding: 12px;
+            border: 1px solid #eee;
+            border-radius: 12px;
+            resize: none;
+            box-sizing: border-box;
+            font-size: 14px;
+            background: #fafafa;
+            outline: none;
+        }
+
+        textarea:focus { border-color: #ccc; }
+
+        .count-text {
+            font-size: 0.9rem;
+            color: #888;
+            margin-top: 10px;
+        }
+
+        .btn-container {
+            margin: 50px 0;
+        }
+
+        button {
+            padding: 16px 60px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: white;
+            background: linear-gradient(135deg, var(--grey-color), var(--pink-color));
+            border: none;
+            border-radius: 100px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 10px 25px rgba(255, 133, 162, 0.3);
+        }
+
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px rgba(255, 133, 162, 0.5);
+            filter: brightness(1.1);
+        }
+
+        /* 彈窗效果 */
+        #overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            color: white;
+            backdrop-filter: blur(5px);
+        }
+
+        .winner-box {
+            text-align: center;
+            animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popIn {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .winner-name {
+            font-size: 3.5rem;
+            font-weight: 800;
+            margin: 15px 0;
+            display: block;
+            text-shadow: 0 0 20px rgba(255,255,255,0.3);
+        }
+
+        .winner-pink { color: var(--pink-color); }
+        .winner-grey { color: var(--grey-color); }
+
+        .close-btn {
+            margin-top: 40px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            padding: 12px 40px;
+            border-radius: 30px;
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.3);
+            transition: background 0.2s;
+        }
+
+        .close-btn:hover { background: rgba(255,255,255,0.2); }
+
+        @media (max-width: 600px) {
+            h1 { font-size: 1.5rem; }
+            .winner-name { font-size: 2.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Pink Magic 空專抽獎</h1>
+
+    <div class="container">
+        <div class="card grey-card">
+            <h2 class="grey-title">🔘 灰版 (Grey Ver.)</h2>
+            <textarea id="greyInput" placeholder="請輸入名單，每行一個號碼或姓名..."></textarea>
+            <p class="count-text">目前名單：<span id="greyCount">0</span> 人</p>
+        </div>
+
+        <div class="card pink-card">
+            <h2 class="pink-title">🌸 粉版 (Pink Ver.)</h2>
+            <textarea id="pinkInput" placeholder="請輸入名單，每行一個號碼或姓名..."></textarea>
+            <p class="count-text">目前名單：<span id="pinkCount">0</span> 人</p>
+        </div>
+    </div>
+
+    <div class="btn-container">
+        <button onclick="drawWinners()">開始抽獎</button>
+    </div>
+
+    <div id="overlay">
+        <div class="winner-box" id="rolling">
+            <h2 style="letter-spacing: 5px;">RANDOMIZING...</h2>
+        </div>
+        <div class="winner-box" id="result" style="display:none;">
+            <h2 style="font-size: 1.2rem; color: #aaa; letter-spacing: 2px;">CONGRATULATIONS</h2>
+            <div style="margin-bottom: 30px;">
+                <span class="grey-title" style="font-size: 1rem;">灰版得獎者</span>
+                <span id="winnerGrey" class="winner-name winner-grey"></span>
+            </div>
+            <div>
+                <span class="pink-title" style="font-size: 1rem;">粉版得獎者</span>
+                <span id="winnerPink" class="winner-name winner-pink"></span>
+            </div>
+            <div class="close-btn" onclick="closeOverlay()">點擊返回</div>
+        </div>
+    </div>
+
+    <script>
+        // 即時計算人數
+        const updateCount = (id, countId) => {
+            const lines = document.getElementById(id).value.split('\n').filter(line => line.trim() !== '');
+            document.getElementById(countId).innerText = lines.length;
+        };
+
+        document.getElementById('greyInput').addEventListener('input', () => updateCount('greyInput', 'greyCount'));
+        document.getElementById('pinkInput').addEventListener('input', () => updateCount('pinkInput', 'pinkCount'));
+
+        function drawWinners() {
+            const greyList = document.getElementById('greyInput').value.split('\n').filter(line => line.trim() !== '');
+            const pinkList = document.getElementById('pinkInput').value.split('\n').filter(line => line.trim() !== '');
+
+            if (greyList.length === 0 || pinkList.length === 0) {
+                alert("灰版跟粉版都要輸入名單才能開始抽獎喔！");
+                return;
+            }
+
+            const overlay = document.getElementById('overlay');
+            const rolling = document.getElementById('rolling');
+            const result = document.getElementById('result');
+            
+            overlay.style.display = 'flex';
+            rolling.style.display = 'block';
+            result.style.display = 'none';
+
+            // 隨機抽取
+            const winnerGrey = greyList[Math.floor(Math.random() * greyList.length)];
+            const winnerPink = pinkList[Math.floor(Math.random() * pinkList.length)];
+
+            // 延遲顯示結果營造氣氛
+            setTimeout(() => {
+                document.getElementById('winnerGrey').innerText = winnerGrey;
+                document.getElementById('winnerPink').innerText = winnerPink;
+                rolling.style.display = 'none';
+                result.style.display = 'block';
+                
+                // 絢麗噴花
+                launchConfetti();
+            }, 1200);
+        }
+
+        function launchConfetti() {
+            const end = Date.now() + 3000;
+            const colors = ['#ff85a2', '#8e8e8e', '#ffffff'];
+
+            (function frame() {
+                confetti({
+                    particleCount: 4,
+                    angle: 60,
+                    spread: 55,
+                    origin: { x: 0, y: 0.6 },
+                    colors: colors
+                });
+                confetti({
+                    particleCount: 4,
+                    angle: 120,
+                    spread: 55,
+                    origin: { x: 1, y: 0.6 },
+                    colors: colors
+                });
+
+                if (Date.now() < end) {
+                    requestAnimationFrame(frame);
+                }
+            }());
+        }
+
+        function closeOverlay() {
+            document.getElementById('overlay').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
