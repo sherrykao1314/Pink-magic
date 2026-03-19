@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pink Magic 空專抽獎</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        :root {
+            --pink-color: #ff85a2;
+            --grey-color: #8e8e8e;
+            --bg-color: #fff5f7;
+        }
+
+        body {
+            font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+            background-color: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 30px 10px;
+            color: #333;
+            margin: 0;
+        }
+
+        h1 {
+            color: var(--pink-color);
+            font-size: 2rem;
+            margin-bottom: 40px;
+            letter-spacing: 2px;
+            font-weight: 800;
+        }
+
+        .container {
+            display: flex;
+            gap: 20px;
+            width: 100%;
+            max-width: 850px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .card {
+            flex: 1;
+            min-width: 320px;
+            background: white;
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.05);
+            border: 2px solid transparent;
+        }
+
+        .pink-card { border-color: var(--pink-color); }
+        .grey-card { border-color: var(--grey-color); }
+
+        textarea {
+            width: 100%;
+            height: 120px;
+            padding: 12px;
+            border: 1px solid #eee;
+            border-radius: 12px;
+            resize: vertical;
+            box-sizing: border-box;
+            background: #fafafa;
+        }
+
+        .count-text { font-size: 0.9rem; font-weight: bold; margin-top: 10px; }
+
+        .btn-container { margin: 40px 0; }
+
+        button {
+            padding: 16px 60px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: white;
+            background: linear-gradient(135deg, var(--grey-color), var(--pink-color));
+            border: none;
+            border-radius: 100px;
+            cursor: pointer;
+            box-shadow: 0 10px 25px rgba(255, 133, 162, 0.3);
+            transition: 0.3s;
+        }
+
+        button:hover { transform: translateY(-3px); }
+
+        /* 抽獎遮罩層 */
+        #overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            color: white;
+            backdrop-filter: blur(10px);
+        }
+
+        /* 滾動中的容器 */
+        .rolling-container {
+            text-align: center;
+        }
+
+        .rolling-label {
+            font-size: 1rem;
+            color: #888;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        /* 正在跳動的名字樣式 */
+        .slot-name {
+            font-size: 3rem;
+            font-weight: 900;
+            height: 4.5rem;
+            line-height: 4.5rem;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .slot-pink { color: var(--pink-color); text-shadow: 0 0 15px rgba(255, 133, 162, 0.5); }
+        .slot-grey { color: #fff; text-shadow: 0 0 15px rgba(255, 255, 255, 0.5); }
+
+        /* 最終得獎者動畫 */
+        .winner-display {
+            display: none;
+            text-align: center;
+            animation: winnerPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes winnerPop {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .final-name {
+            font-size: 4.5rem;
+            font-weight: 900;
+            display: block;
+            margin: 10px 0 30px 0;
+        }
+
+        .close-btn {
+            margin-top: 50px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            padding: 12px 50px;
+            border-radius: 30px;
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Pink Magic 空專抽獎</h1>
+
+    <div class="container">
+        <div class="card grey-card">
+            <h2 style="color:var(--grey-color)">🔘 灰版 (Grey Ver.)</h2>
+            <textarea id="greyInput" placeholder="輸入名單..."></textarea>
+            <p class="count-text">已輸入：<span id="greyCount">0</span> 人</p>
+        </div>
+
+        <div class="card pink-card">
+            <h2 style="color:var(--pink-color)">🌸 粉版 (Pink Ver.)</h2>
+            <textarea id="pinkInput" placeholder="輸入名單..."></textarea>
+            <p class="count-text">已輸入：<span id="pinkCount">0</span> 人</p>
+        </div>
+    </div>
+
+    <div class="btn-container">
+        <button onclick="startMagicDraw()">✨ 開始抽獎 ✨</button>
+    </div>
+
+    <div id="overlay">
+        <div id="rollingArea" class="rolling-container">
+            <div style="margin-bottom: 40px;">
+                <span class="rolling-label">GREY VER. ROLLING</span>
+                <div id="slotGrey" class="slot-name slot-grey">---</div>
+            </div>
+            <div>
+                <span class="rolling-label">PINK VER. ROLLING</span>
+                <div id="slotPink" class="slot-name slot-pink">---</div>
+            </div>
+            <h2 style="margin-top: 40px; letter-spacing: 5px; color: #666;">抽獎中...</h2>
+        </div>
+
+        <div id="resultArea" class="winner-display">
+            <h2 style="color: #aaa; letter-spacing: 3px;">🎉 THE WINNERS ARE 🎉</h2>
+            
+            <div>
+                <span style="color:var(--grey-color); font-size: 1rem;">灰版得獎者</span>
+                <span id="finalGrey" class="final-name" style="color:#fff;"></span>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <span style="color:var(--pink-color); font-size: 1rem;">粉版得獎者</span>
+                <span id="finalPink" class="final-name" style="color:var(--pink-color);"></span>
+            </div>
+
+            <div class="close-btn" onclick="closeOverlay()">返回修改名單</div>
+        </div>
+    </div>
+
+    <script>
+        function parseList(text) {
+            return text.split(/[\n,，、\s]+/).filter(item => item.trim() !== '');
+        }
+
+        // 更新人數
+        const updateCount = (id, countId) => {
+            document.getElementById(countId).innerText = parseList(document.getElementById(id).value).length;
+        };
+        document.getElementById('greyInput').addEventListener('input', () => updateCount('greyInput', 'greyCount'));
+        document.getElementById('pinkInput').addEventListener('input', () => updateCount('pinkInput', 'pinkCount'));
+
+        let rollInterval;
+
+        function startMagicDraw() {
+            const greyList = parseList(document.getElementById('greyInput').value);
+            const pinkList = parseList(document.getElementById('pinkInput').value);
+
+            if (greyList.length === 0 || pinkList.length === 0) {
+                alert("兩邊的名單都不能空著喔！");
+                return;
+            }
+
+            const overlay = document.getElementById('overlay');
+            const rollingArea = document.getElementById('rollingArea');
+            const resultArea = document.getElementById('resultArea');
+            const slotGrey = document.getElementById('slotGrey');
+            const slotPink = document.getElementById('slotPink');
+
+            overlay.style.display = 'flex';
+            rollingArea.style.display = 'block';
+            resultArea.style.display = 'none';
+
+            // --- 緊張的跳號邏輯 ---
+            let duration = 2000; // 滾動 2 秒
+            let startTime = Date.now();
+
+            rollInterval = setInterval(() => {
+                // 隨機從名單中挑選一個顯示（視覺效果）
+                slotGrey.innerText = greyList[Math.floor(Math.random() * greyList.length)];
+                slotPink.innerText = pinkList[Math.floor(Math.random() * pinkList.length)];
+
+                // 如果時間到了，停止滾動並顯示最終結果
+                if (Date.now() - startTime >= duration) {
+                    clearInterval(rollInterval);
+                    showFinalResult(greyList, pinkList);
+                }
+            }, 80); // 每 80 毫秒跳動一次
+        }
+
+        function showFinalResult(greyList, pinkList) {
+            const rollingArea = document.getElementById('rollingArea');
+            const resultArea = document.getElementById('resultArea');
+            
+            // 真正算出得獎者
+            const winnerGrey = greyList[Math.floor(Math.random() * greyList.length)];
+            const winnerPink = pinkList[Math.floor(Math.random() * pinkList.length)];
+
+            document.getElementById('finalGrey').innerText = winnerGrey;
+            document.getElementById('finalPink').innerText = winnerPink;
+
+            // 切換畫面
+            rollingArea.style.display = 'none';
+            resultArea.style.display = 'block';
+
+            // 觸發噴發彩帶
+            launchConfetti();
+        }
+
+        function launchConfetti() {
+            const colors = ['#ff85a2', '#8e8e8e', '#ffffff'];
+            const end = Date.now() + 3000;
+
+            (function frame() {
+                confetti({
+                    particleCount: 5,
+                    angle: 60,
+                    spread: 55,
+                    origin: { x: 0, y: 0.6 },
+                    colors: colors,
+                    zIndex: 10000
+                });
+                confetti({
+                    particleCount: 5,
+                    angle: 120,
+                    spread: 55,
+                    origin: { x: 1, y: 0.6 },
+                    colors: colors,
+                    zIndex: 10000
+                });
+                if (Date.now() < end) requestAnimationFrame(frame);
+            }());
+            
+            // 額外的中心大爆發
+            confetti({
+                particleCount: 150,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: colors,
+                zIndex: 10000
+            });
+        }
+
+        function closeOverlay() {
+            document.getElementById('overlay').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
